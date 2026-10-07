@@ -15,10 +15,10 @@ product screen.
 ## Install
 
 **Swift Package Manager** — Xcode → File → Add Package Dependencies → paste
-`https://github.com/adib85/runa-chat-ios` (or add it to your `Package.swift`):
+`https://github.com/askruna/runa-chat-ios` (or add it to your `Package.swift`):
 
 ```swift
-.package(url: "https://github.com/adib85/runa-chat-ios", from: "1.0.0")
+.package(url: "https://github.com/askruna/runa-chat-ios", from: "1.0.0")
 ```
 
 **CocoaPods**
