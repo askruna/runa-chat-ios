@@ -18,7 +18,7 @@ product screen.
 `https://github.com/askruna/runa-chat-ios` (or add it to your `Package.swift`):
 
 ```swift
-.package(url: "https://github.com/askruna/runa-chat-ios", from: "1.0.0")
+.package(url: "https://github.com/askruna/runa-chat-ios", from: "1.0.1")
 ```
 
 **CocoaPods**
@@ -32,7 +32,7 @@ pod 'RunaChat', '~> 1.0'
 ```swift
 import RunaChat
 
-var options = RunaChat.Options(pageURL: URL(string: "https://quicklly.askruna.ai/app/chat-app.html")!,  // the page URL Runa gives you
+var options = RunaChat.Options(client: "quicklly",                      // your client key from Runa
                                zip: "60610")                            // the delivery ZIP (required)
 options.userId = "12345"                                                // customer id, or a stable id for guests
 options.address = "1140 N Wells St, Chicago"; options.city = "Chicago"; options.state = "IL"
@@ -95,8 +95,8 @@ Launched with the `--self-test` argument it opens the chat and runs the checks i
 
 ## How it works
 
-`RunaChatViewController` is a full-screen `WKWebView` on the chat page with a JSON message
-bridge: the page calls `window.webkit.messageHandlers.runa.postMessage(json)` and the library
+`RunaChatViewController` is a full-screen `WKWebView` on the chat page Runa hosts for your client
+key, with a JSON message bridge: the page calls `window.webkit.messageHandlers.runa.postMessage(json)` and the library
 answers with `window.RunaBridge.receive(json)`. The messages are documented at
 https://quicklly.askruna.ai/app/docs/. Only the page's own origin can use the bridge.
 

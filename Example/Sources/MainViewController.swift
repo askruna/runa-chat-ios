@@ -22,7 +22,6 @@ final class SampleCart {
 /// A stand-in for the Quicklly app: a cart, a product screen and an "Ask Quicklly" button.
 /// Everything a retailer writes is `openChat` and the `RunaChatDelegate` extension below.
 final class MainViewController: UIViewController {
-    static let page = "https://quicklly.askruna.ai/app/chat-app.html"
     private let cartLabel = UILabel()
 
     override func viewDidLoad() {
@@ -68,7 +67,7 @@ final class MainViewController: UIViewController {
 
     // ─── This is the whole integration ────────────────────────────────────────────────────
     func openChat(question: String?) {
-        var options = RunaChat.Options(pageURL: URL(string: Self.page)!, zip: "60610")
+        var options = RunaChat.Options(client: "quicklly", zip: "60610")   // the client key from Runa
         options.userId = "sample-user-1"
         options.address = "1140 N Wells St, Chicago"
         options.city = "Chicago"

@@ -4,7 +4,7 @@ import WebKit
 /// Runa Chat — the AI shopping assistant as a screen in your app.
 ///
 /// ```swift
-/// var options = RunaChat.Options(pageURL: URL(string: "https://quicklly.askruna.ai/app/chat-app.html")!, zip: "60610")
+/// var options = RunaChat.Options(client: "quicklly", zip: "60610")   // your client key from Runa
 /// options.userId = "12345"
 /// RunaChat.open(from: self, options: options, delegate: self)
 ///
@@ -18,10 +18,10 @@ import WebKit
 /// The app answers the two delegate calls above (the others are optional). Everything runs on the main thread.
 public enum RunaChat {
 
-    /// Where the chat page is and who / where the shopper is. The page URL and the ZIP are required.
+    /// Who the client is and who / where the shopper is. The client key and the ZIP are required.
     public struct Options {
-        /// The chat page Runa gives you, e.g. https://quicklly.askruna.ai/app/chat-app.html
-        public var pageURL: URL
+        /// Your client key from Runa, e.g. "quicklly".
+        public var client: String
         /// The delivery ZIP. The chat shows the stores that deliver there.
         public var zip: String
         /// The customer id, or a stable id for guests. Keeps the conversation and analytics per shopper.
@@ -36,16 +36,18 @@ public enum RunaChat {
         public var question: String?
         /// Print every message between the app and the page.
         public var debug = false
+        /// Runa's own use: a test page instead of the client's live page.
+        public var pageURLOverride: URL?
 
-        public init(pageURL: URL, zip: String) {
-            self.pageURL = pageURL
+        public init(client: String, zip: String) {
+            self.client = client.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             self.zip = zip
+            assert(self.client.range(of: "^[a-z0-9-]+$", options: .regularExpression) != nil, "RunaChat: the client key is the one Runa gave you, e.g. \"quicklly\"")
         }
 
-        /// Same, from a URL string; nil when the string is not an https URL.
-        public init?(pageURL: String, zip: String) {
-            guard let url = URL(string: pageURL), url.scheme == "https" else { return nil }
-            self.init(pageURL: url, zip: zip)
+        /// The chat page for this client. Runa hosts it; the key is all the app needs to know.
+        var pageURL: URL {
+            pageURLOverride ?? URL(string: "https://\(client).askruna.ai/app/chat-app.html")!
         }
     }
 
