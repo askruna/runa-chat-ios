@@ -1,0 +1,29 @@
+# Generates Example/RunaChatSample.xcodeproj: `xcodegen generate` in this folder.
+name: RunaChatSample
+options:
+  bundleIdPrefix: ai.askruna
+  deploymentTarget:
+    iOS: "15.0"
+  xcodeVersion: "14.3"
+packages:
+  RunaChat:
+    path: ..
+targets:
+  RunaChatSample:
+    type: application
+    platform: iOS
+    sources: [Sources]
+    dependencies:
+      - package: RunaChat
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: Runa Chat sample
+        CFBundleShortVersionString: "1.0-sample"
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.askruna.chat.sample
+        CODE_SIGNING_ALLOWED: "NO"
+        SWIFT_VERSION: "5.7"

@@ -1,0 +1,155 @@
+import UIKit
+import WebKit
+
+/// Runa Chat — the AI shopping assistant as a screen in your app.
+///
+/// ```swift
+/// var options = RunaChat.Options(pageURL: URL(string: "https://quicklly.askruna.ai/app/chat-app.html")!, zip: "60610")
+/// options.userId = "12345"
+/// RunaChat.open(from: self, options: options, delegate: self)
+///
+/// extension MyViewController: RunaChatDelegate {
+///     func runaChat(_ chat: RunaChatViewController, setQuantity quantity: Int, of product: RunaChat.Product) { /* your add-to-cart */ }
+///     func runaChatCart(_ chat: RunaChatViewController) -> [RunaChat.CartItem] { /* what is in your cart */ }
+/// }
+/// ```
+///
+/// The chat is a web page hosted by Runa, shown full screen; it is updated without app releases.
+/// The app answers the two delegate calls above (the others are optional). Everything runs on the main thread.
+public enum RunaChat {
+
+    /// Where the chat page is and who / where the shopper is. The page URL and the ZIP are required.
+    public struct Options {
+        /// The chat page Runa gives you, e.g. https://quicklly.askruna.ai/app/chat-app.html
+        public var pageURL: URL
+        /// The delivery ZIP. The chat shows the stores that deliver there.
+        public var zip: String
+        /// The customer id, or a stable id for guests. Keeps the conversation and analytics per shopper.
+        public var userId: String?
+        /// The "Shopping in" label, shown in the chat's store picker.
+        public var address: String?
+        public var city: String?
+        public var state: String?
+        /// Open scoped to one store (store slug, e.g. "quicklly_desi-india-bazaar").
+        public var storeId: String?
+        /// A question the chat sends right away ("What can I cook with paneer?").
+        public var question: String?
+        /// Print every message between the app and the page.
+        public var debug = false
+
+        public init(pageURL: URL, zip: String) {
+            self.pageURL = pageURL
+            self.zip = zip
+        }
+
+        /// Same, from a URL string; nil when the string is not an https URL.
+        public init?(pageURL: String, zip: String) {
+            guard let url = URL(string: pageURL), url.scheme == "https" else { return nil }
+            self.init(pageURL: url, zip: zip)
+        }
+    }
+
+    /// A product the chat wants in the cart. Ids are Quicklly's numeric ids, as strings.
+    public struct Product {
+        public let pid: String
+        public let sid: String
+        public let title: String
+        public let price: Double?
+        public let image: String
+        public let storeName: String
+        public let storeSlug: String
+        public let url: URL?
+        public let fastDelivery: Bool
+        /// The whole message payload, for anything not listed above.
+        public let raw: [String: Any]
+
+        init(_ p: [String: Any]) {
+            raw = p
+            pid = p["pid"] as? String ?? String(describing: p["pid"] ?? "")
+            sid = p["sid"] as? String ?? String(describing: p["sid"] ?? "")
+            title = p["title"] as? String ?? ""
+            price = (p["price"] as? NSNumber)?.doubleValue
+            image = p["image"] as? String ?? ""
+            storeName = p["storeName"] as? String ?? ""
+            storeSlug = p["storeSlug"] as? String ?? ""
+            url = (p["url"] as? String).flatMap { URL(string: $0) }
+            fastDelivery = (p["fastdelivery"] as? String) == "1"
+        }
+    }
+
+    /// One line of the app's cart.
+    public struct CartItem {
+        public let pid: String
+        public let sid: String
+        public let quantity: Int
+
+        public init(pid: String, sid: String, quantity: Int) {
+            self.pid = pid
+            self.sid = sid
+            self.quantity = quantity
+        }
+    }
+
+    /// Open the chat: pushed when `from` is in a navigation controller, otherwise presented full screen.
+    @discardableResult
+    public static func open(from: UIViewController, options: Options, delegate: RunaChatDelegate) -> RunaChatViewController {
+        let chat = RunaChatViewController(options: options, delegate: delegate)
+        if let nav = from.navigationController {
+            nav.pushViewController(chat, animated: true)
+        } else {
+            chat.modalPresentationStyle = .fullScreen
+            from.present(chat, animated: true)
+        }
+        return chat
+    }
+
+    /// Call after the cart changes outside the chat (cart screen, product screen) while the chat may be open.
+    public static func notifyCartChanged() {
+        RunaChatViewController.current?.sendCart()
+    }
+
+    /// The shopper changed the delivery address. An open chat re-scopes to it and starts a new conversation.
+    public static func updateAddress(zip: String, address: String?, city: String?, state: String?) {
+        RunaChatViewController.current?.sendAddress(zip: zip, address: address, city: city, state: state)
+    }
+
+    /// Optional: call once early (e.g. when the grocery tab opens) so the first open of the chat is faster.
+    public static func warmUp() {
+        _ = warmWebView
+    }
+
+    private static let warmWebView: WKWebView = {
+        let wv = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
+        wv.loadHTMLString("", baseURL: nil)
+        return wv
+    }()
+}
+
+/// What the app does for the chat. Only `setQuantity` and `runaChatCart` are required.
+public protocol RunaChatDelegate: AnyObject {
+    /// Set this product's quantity in the app's cart. Absolute: 0 removes the line.
+    func runaChat(_ chat: RunaChatViewController, setQuantity quantity: Int, of product: RunaChat.Product)
+
+    /// What is in the app's cart right now.
+    func runaChatCart(_ chat: RunaChatViewController) -> [RunaChat.CartItem]
+
+    /// The shopper tapped a product card. Open your product screen and return true;
+    /// return false to open the product's web page in the browser instead.
+    func runaChat(_ chat: RunaChatViewController, openProduct product: RunaChat.Product) -> Bool
+
+    /// An outside link (a recipe, a web page). Return false to open it in Safari.
+    func runaChat(_ chat: RunaChatViewController, openLink url: URL) -> Bool
+
+    /// The chat screen was closed (the ✕, swipe back, or your own pop/dismiss).
+    func runaChatDidClose(_ chat: RunaChatViewController)
+
+    /// Every message from the chat page, after the library handled it — e.g. for analytics ("setQty", "track"…).
+    func runaChat(_ chat: RunaChatViewController, didReceive type: String, payload: [String: Any])
+}
+
+public extension RunaChatDelegate {
+    func runaChat(_ chat: RunaChatViewController, openProduct product: RunaChat.Product) -> Bool { false }
+    func runaChat(_ chat: RunaChatViewController, openLink url: URL) -> Bool { false }
+    func runaChatDidClose(_ chat: RunaChatViewController) {}
+    func runaChat(_ chat: RunaChatViewController, didReceive type: String, payload: [String: Any]) {}
+}
