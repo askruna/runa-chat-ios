@@ -14,7 +14,7 @@ import WebKit
 /// }
 /// ```
 ///
-/// The chat is a web page hosted by Runa, shown full screen; it is updated without app releases.
+/// The chat is hosted and updated by Runa and shown full screen; improvements reach your users without app releases.
 /// The app answers the two delegate calls above (the others are optional). Everything runs on the main thread.
 public enum RunaChat {
 

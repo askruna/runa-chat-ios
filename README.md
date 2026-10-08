@@ -3,10 +3,10 @@
 The Runa AI shopping assistant ("Ask Quicklly") as a screen in your iOS app. One package, one
 call to open it, two delegate methods to connect it to your cart.
 
-The chat itself is a web page hosted by Runa and shown full screen inside the library's own view
-controller; it is updated by Runa without app releases. The app provides only what the app alone
-can do: who and where the shopper is, adding to the cart, what is in the cart, and opening your
-product screen.
+The chat itself is hosted and updated by Runa and shown full screen by the library's own view
+controller, so improvements reach your users without app releases. The app provides only what the
+app alone can do: who and where the shopper is, adding to the cart, what is in the cart, and
+opening your product screen.
 
 - Swift, UIKit + WebKit only, no other dependencies
 - iOS 13+, tested on iOS 16.4
@@ -92,15 +92,14 @@ open RunaChatSample.xcodeproj
 ```
 
 Launched with the `--self-test` argument it opens the chat and runs the checks in
-`SelfTest.swift` inside the real WKWebView; the results are printed to the console
+`SelfTest.swift` against the real chat screen; the results are printed to the console
 (`tests/run-simulator.sh` does this on a simulator).
 
-## How it works
+## Documentation
 
-`RunaChatViewController` is a full-screen `WKWebView` on the chat page Runa hosts for your client
-key, with a JSON message bridge: the page calls `window.webkit.messageHandlers.runa.postMessage(json)` and the library
-answers with `window.RunaBridge.receive(json)`. The messages are documented at
-https://quicklly.askruna.ai/app/docs/. Only the page's own origin can use the bridge.
+The integration guide, the test checklist and a live demo: https://quicklly.askruna.ai/app/docs/.
+The chat itself is hosted and updated by Runa, so improvements reach your users without an app
+release; the library only needs the two delegate methods above.
 
 ## License
 
