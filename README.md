@@ -18,7 +18,7 @@ product screen.
 `https://github.com/askruna/runa-chat-ios` (or add it to your `Package.swift`):
 
 ```swift
-.package(url: "https://github.com/askruna/runa-chat-ios", from: "1.0.1")
+.package(url: "https://github.com/askruna/runa-chat-ios", from: "1.0.2")
 ```
 
 **CocoaPods**
@@ -70,7 +70,9 @@ about this product"); `options.debug = true` prints every message. You can also 
 `RunaChatViewController(options:delegate:)` yourself and push or present it where you like.
 
 `setQuantity` is called with everything the chat knows about the product (`title`, `price`,
-`image`, `storeName`, `url`, `fastDelivery`, and `raw` with the whole payload). The recommended
+`image`, `storeName`, `storeImage`, `url`, `fastDelivery`, and `raw` with the whole payload) and the
+store's terms for the shopper's ZIP (`minOrder`, `deliveryFee`, `deliveryRange`, `instantDelivery`),
+so a new store row can be created without a lookup. The recommended
 pattern is to look the product up by `pid` + `sid` with the same API your product screen uses
 and add it through your normal add-to-cart path, so prices, tax and inventory always come from
 your own system.

@@ -62,6 +62,13 @@ public enum RunaChat {
         public let storeSlug: String
         public let url: URL?
         public let fastDelivery: Bool
+        /// The store's terms for the shopper's ZIP, from Quicklly's own store list. nil = unknown.
+        public let minOrder: Double?
+        public let deliveryFee: Double?
+        /// Their delivery label for the store, e.g. "Delivery In 3 hours or less" or "5:30 PM - 8:30 PM".
+        public let deliveryRange: String
+        public let instantDelivery: Bool
+        public let storeImage: String
         /// The whole message payload, for anything not listed above.
         public let raw: [String: Any]
 
@@ -76,6 +83,11 @@ public enum RunaChat {
             storeSlug = p["storeSlug"] as? String ?? ""
             url = (p["url"] as? String).flatMap { URL(string: $0) }
             fastDelivery = (p["fastdelivery"] as? String) == "1"
+            minOrder = (p["minOrder"] as? NSNumber)?.doubleValue
+            deliveryFee = (p["deliveryFee"] as? NSNumber)?.doubleValue
+            deliveryRange = p["deliveryRange"] as? String ?? ""
+            instantDelivery = p["instantDelivery"] as? Bool ?? false
+            storeImage = p["storeImage"] as? String ?? ""
         }
     }
 

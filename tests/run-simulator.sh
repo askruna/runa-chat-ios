@@ -43,4 +43,5 @@ xcrun simctl io "$UDID" screenshot "$OUT/final.png" >/dev/null 2>&1 || true
 kill $LAUNCH 2>/dev/null || true
 
 grep -E "\[SelfTest\]|\[Sample\]" "$OUT/console.log" | sed -E 's/^.*\[(SelfTest|Sample)\] /\1: /'
-grep -q "\[SelfTest\] DONE pass=[0-9]+ fail=0" "$OUT/console.log"
+if grep -qE "setQuantity .*minOrder=[0-9.]+ deliveryFee=[0-9.]+ range=." "$OUT/console.log"; then echo "SelfTest: PASS product carries the store's terms (minOrder, deliveryFee, range)"; else echo "SelfTest: FAIL product terms missing on setQuantity"; exit 1; fi
+grep -qE "\[SelfTest\] DONE pass=[0-9]+ fail=0" "$OUT/console.log"
