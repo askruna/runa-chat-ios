@@ -1,7 +1,7 @@
 # Runa Chat for iOS
 
 The Runa AI shopping assistant ("Ask Quicklly") as a screen in your iOS app. One package, one
-call to open it, two delegate methods to connect it to your cart.
+call to open it, three delegate methods to connect it to your cart and your product screen.
 
 The chat itself is hosted and updated by Runa and shown full screen by the library's own view
 controller, so improvements reach your users without app releases. The app provides only what the
@@ -44,6 +44,10 @@ extension MyViewController: RunaChatDelegate {
     }
     func runaChatCart(_ chat: RunaChatViewController) -> [RunaChat.CartItem] {
         // what is in your cart now: one CartItem(pid:sid:quantity:) per line
+    }
+    func runaChat(_ chat: RunaChatViewController, openProduct product: RunaChat.Product) -> Bool {
+        // open your product screen for product.pid / product.sid, then return true
+        return true
     }
 }
 ```
@@ -104,7 +108,7 @@ Launched with the `--self-test` argument it opens the chat and runs the checks i
 
 The integration guide, the test checklist and a live demo: https://quicklly.askruna.ai/app/docs/.
 The chat itself is hosted and updated by Runa, so improvements reach your users without an app
-release; the library only needs the two delegate methods above.
+release; the library only needs the three delegate methods above.
 
 ## License
 
