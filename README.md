@@ -24,7 +24,7 @@ opening your product screen.
 **CocoaPods**
 
 ```ruby
-pod 'RunaChat', '~> 1.0'
+pod 'RunaChat', :git => 'https://github.com/askruna/runa-chat-ios.git', :tag => '1.0.3'
 ```
 
 ## Use
