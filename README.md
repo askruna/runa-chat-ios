@@ -18,7 +18,7 @@ opening your product screen.
 `https://github.com/askruna/runa-chat-ios` (or add it to your `Package.swift`):
 
 ```swift
-.package(url: "https://github.com/askruna/runa-chat-ios", from: "1.0.2")
+.package(url: "https://github.com/askruna/runa-chat-ios", from: "1.0.3")
 ```
 
 **CocoaPods**
@@ -48,12 +48,19 @@ extension MyViewController: RunaChatDelegate {
 }
 ```
 
-That is the whole integration. Optional delegate methods:
+**Required** — three delegate methods:
+
+| method | when | what you do |
+| --- | --- | --- |
+| `runaChat(_:setQuantity:of:)` | the shopper tapped ADD or changed a quantity | set that product's quantity in your cart (`pid`, `sid`; absolute, `0` removes) |
+| `runaChatCart(_:)` | the chat needs to draw its steppers | return your cart: one `CartItem(pid:sid:quantity:)` per line |
+| `runaChat(_:openProduct:) -> Bool` | the shopper tapped a product card | open your own product screen for that `pid` / `sid` and return `true` (left out, the product's web page opens in an in-app browser sheet — a safety net only) |
+
+**Optional** — leave them out and the defaults apply:
 
 | method | when | default |
 | --- | --- | --- |
-| `runaChat(_:openProduct:) -> Bool` | the shopper tapped a product card | opens the product's web page in Safari; return `true` after showing your own product screen |
-| `runaChat(_:openLink:) -> Bool` | an outside link (a recipe, a web page) | opens in Safari |
+| `runaChat(_:openLink:) -> Bool` | an outside link — rare in the chat (a recipe page, a size guide) | opens in an in-app browser sheet (`SFSafariViewController`, with a Done button); return `true` to show it your own way |
 | `runaChatDidClose(_:)` | the chat screen closed | — |
 | `runaChat(_:didReceive:payload:)` | every message from the page, e.g. for analytics | — |
 
@@ -72,14 +79,12 @@ about this product"); `options.debug = true` prints every message. You can also 
 `setQuantity` is called with everything the chat knows about the product (`title`, `price`,
 `image`, `storeName`, `storeImage`, `url`, `fastDelivery`, and `raw` with the whole payload) and the
 store's terms for the shopper's ZIP (`minOrder`, `deliveryFee`, `deliveryRange`, `instantDelivery`),
-so a new store row can be created without a lookup. The recommended
-pattern is to look the product up by `pid` + `sid` with the same API your product screen uses
-and add it through your normal add-to-cart path, so prices, tax and inventory always come from
-your own system.
+so a new store row can be drawn without a lookup. Prices, images and terms come from Runa's index
+(refreshed nightly) and are for display: add the line through your usual add-to-cart call with
+`pid` and `sid`, so your server prices it as it always does.
 
-Everything runs on the main thread. The library handles the keyboard, safe areas and the notch,
-hides the navigation bar on its screen (the page has its own header; swipe-back still works),
-outside links, loading and error states, and keeps the web view on the chat page only.
+Everything runs on the main thread. Keyboard, safe areas, the navigation bar, outside links,
+loading and error states are the library's job — see https://quicklly.askruna.ai/app/docs/.
 
 ## Sample app
 

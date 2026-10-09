@@ -1,5 +1,6 @@
 import UIKit
 import WebKit
+import SafariServices
 import RunaChat
 
 /// Test only (`--self-test` launch argument): after the page says `ready`, runs a script inside the
@@ -24,6 +25,11 @@ enum SelfTest {
             RunaChat.notifyCartChanged()
         case "selfTestPop":
             chat.navigationController?.popToViewController(chat, animated: true)
+        case "selfTestSheet":
+            // Did the library show its in-app browser sheet (the openLink fallback)? Answer into the page, then close it.
+            let sheet = chat.presentedViewController is SFSafariViewController
+            webView(in: chat.view)?.evaluateJavaScript("window.__runaSelfTestSheet = " + (sheet ? "true" : "false") + ";", completionHandler: nil)
+            chat.presentedViewController?.dismiss(animated: false)
         case "selfTestKeyboard":
             // Stand in for the real keyboard (the simulator cannot be tapped from a script): the same
             // notification iOS posts, with a 336 pt keyboard at the bottom of the screen.
@@ -115,6 +121,15 @@ enum SelfTest {
           window.open('https://www.quicklly.com/', '_blank');
           await sleep(800);
           ok(location.href === href, 'outside link did not navigate the chat');
+
+          // Outside link the app does NOT handle → the library's in-app browser sheet, never Safari
+          window.__runaSelfTestSheet = undefined;
+          window.open('https://www.quicklly.com/runa-fallback-test', '_blank');
+          await sleep(1500);
+          post('selfTestSheet', {});
+          var sheet = await waitFor(function () { return typeof window.__runaSelfTestSheet === 'boolean' ? { v: window.__runaSelfTestSheet } : null; }, 5000);
+          ok(!!(sheet && sheet.v), 'openLink not handled by the app → in-app browser sheet (SFSafariViewController)');
+          await sleep(600);
 
           // ✕ → close
           $('.runa-c__window-close').click();

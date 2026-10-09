@@ -1,5 +1,6 @@
 import UIKit
 import WebKit
+import SafariServices
 
 /// The chat screen: a full-screen WKWebView on Runa's page plus the JSON message bridge
 /// (window.webkit.messageHandlers.runa → app, window.RunaBridge.receive ← app).
@@ -219,7 +220,7 @@ public final class RunaChatViewController: UIViewController {
         case "openProduct":
             let product = RunaChat.Product(payload)
             if delegate?.runaChat(self, openProduct: product) != true, let url = product.url {
-                UIApplication.shared.open(url)
+                openInApp(url)
             }
         case "openExternal":
             if let s = payload["url"] as? String, let url = URL(string: s) { openLink(url) }
@@ -235,7 +236,20 @@ public final class RunaChatViewController: UIViewController {
 
     private func openLink(_ url: URL) {
         if delegate?.runaChat(self, openLink: url) == true { return }
-        UIApplication.shared.open(url)
+        openInApp(url)
+    }
+
+    /// The fallback when the app does not handle a link itself: an in-app browser sheet over the
+    /// chat (SFSafariViewController, with its own Done button), so the shopper never leaves the app.
+    /// Anything that is not http(s) — mailto:, tel:, another app's scheme — goes to the system.
+    private func openInApp(_ url: URL) {
+        guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
+            UIApplication.shared.open(url)
+            return
+        }
+        let sheet = SFSafariViewController(url: url)
+        sheet.modalPresentationStyle = .pageSheet
+        (presentedViewController ?? self).present(sheet, animated: true)
     }
 
     /// Close the chat screen (pop when pushed, dismiss when presented).

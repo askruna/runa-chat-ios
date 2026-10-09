@@ -97,6 +97,7 @@ extension MainViewController: RunaChatDelegate {
 
     func runaChat(_ chat: RunaChatViewController, openLink url: URL) -> Bool {
         NSLog("[Sample] openLink %@", url.absoluteString)
+        if SelfTest.enabled && url.path.hasSuffix("runa-fallback-test") { return false }   // test only: let the library's in-app sheet show
         return true      // handled (a real app would open an in-app browser)
     }
 
