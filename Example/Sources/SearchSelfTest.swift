@@ -110,11 +110,12 @@ enum SearchSelfTest {
           ok(q.q === 'cow milk' && q.results === '4' && /^Amul Water Buffalo/.test(q.titles || '') && q.zip === '60610' && q.platform === 'ios',
             'page URL from search(): q=' + q.q + ' results=' + q.results + ' platform=' + q.platform);
           ok(!!(await waitFor(function () { return $('.runa-sb .runa-c__pcard'); }, 90000)), 'the answer shows products');
-          await sleep(1500);
+          await sleep(500);
+          post('selfTestHeight', { css: height() });   // the app must hear the height within half a second of the answer
+          await sleep(1000);
           var first = $('.runa-sb .runa-c__pcard-title').textContent.trim();
           var n = document.querySelectorAll('.runa-sb .runa-c__pcard').length;
           ok(n >= 3 && /milk/i.test(first) && !/butter/i.test(first), 'answer: ' + n + ' products, first "' + first + '" (the app\\'s own first result is butter)');
-          post('selfTestHeight', { css: height() });
           await shot('search-answer');
 
           $('.runa-sb .runa-c__pcard-add').click();
@@ -135,7 +136,7 @@ enum SearchSelfTest {
           chip.click();
 
           var second = await waitFor(function () { return $('.runa-sb[data-query="basmati rice"] .runa-c__pcard'); }, 240000);
-          await sleep(1500);
+          await sleep(500);
           var t2 = second ? $('.runa-sb .runa-c__pcard-title').textContent.trim() : '';
           ok(/rice/i.test(t2), 'a new search typed in the app → new answer in the same view, first "' + t2 + '"');
           post('selfTestHeight', { css: height() });
