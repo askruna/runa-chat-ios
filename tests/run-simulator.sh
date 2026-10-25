@@ -60,5 +60,6 @@ if [ "$MODE" = search ]; then
   grep -qE "\[SelfTest\] DONE pass=[0-9]+ fail=0" "$OUT/console.log"
   exit $?
 fi
+if grep -q "\[SelfTest\] FAIL" "$OUT/console.log"; then echo "SelfTest: a check failed (above)"; exit 1; fi
 if grep -qE "setQuantity .*minOrder=[0-9.]+ deliveryFee=[0-9.]+ range=." "$OUT/console.log"; then echo "SelfTest: PASS product carries the store's terms (minOrder, deliveryFee, range)"; else echo "SelfTest: FAIL product terms missing on setQuantity"; exit 1; fi
 grep -qE "\[SelfTest\] DONE pass=[0-9]+ fail=0" "$OUT/console.log"

@@ -20,13 +20,13 @@ opening your product screen.
 `https://github.com/askruna/runa-chat-ios` (or add it to your `Package.swift`):
 
 ```swift
-.package(url: "https://github.com/askruna/runa-chat-ios", from: "1.1.0")
+.package(url: "https://github.com/askruna/runa-chat-ios", from: "1.1.1")
 ```
 
 **CocoaPods**
 
 ```ruby
-pod 'RunaChat', :git => 'https://github.com/askruna/runa-chat-ios.git', :tag => '1.1.0'
+pod 'RunaChat', :git => 'https://github.com/askruna/runa-chat-ios.git', :tag => '1.1.1'
 ```
 
 ## Use
@@ -90,7 +90,7 @@ so a new store row can be drawn without a lookup. Prices, images and terms come 
 `pid` and `sid`, so your server prices it as it always does.
 
 Everything runs on the main thread. Keyboard, safe areas, the navigation bar, outside links,
-loading and error states are the library's job — see https://quicklly.askruna.ai/app/docs/.
+the loading screen (the Ask Quicklly mark) and the error state are the library's job — see https://quicklly.askruna.ai/app/docs/.
 
 ## Ask Quicklly in search (1.1.0)
 
@@ -167,6 +167,7 @@ without an app release; the library only needs the three delegate methods above.
 
 ## Versions
 
+- **1.1.1** — the chat's loading screen: the Ask Quicklly mark (the search answer's sparkle in a spinning ring) instead of a plain spinner, until the chat has drawn.
 - **1.1.0** — `RunaSearchView` (Ask Quicklly in search), `RunaChat.orderPlaced`.
 - **1.0.3** — in-app browser fallback for outside links; `openProduct` required.
 

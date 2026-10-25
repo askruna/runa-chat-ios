@@ -10,6 +10,14 @@ import RunaChat
 /// back from the product screen; `selfTestKeyboard`: a keyboard appears).
 enum SelfTest {
     static var enabled = false
+    private static var sawShown = false
+
+    /// The library's loading screen (1.1.1), found by its accessibility id.
+    static func loadingView(in view: UIView) -> UIView? {
+        if view.accessibilityIdentifier == "runa-loading" { return view }
+        for sub in view.subviews { if let v = loadingView(in: sub) { return v } }
+        return nil
+    }
 
     static func handle(type: String, payload: [String: Any], chat: RunaChatViewController) {
         guard enabled else { return }
@@ -18,7 +26,12 @@ enum SelfTest {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { webView(in: chat.view)?.evaluateJavaScript(script, completionHandler: nil) }
         case "selfTestStep":
             NSLog("[SelfTest] %@", payload["line"] as? String ?? "")
+        case "shown":
+            sawShown = true
         case "selfTestDone":
+            // the loading screen went once the page said the chat had drawn — a stuck one would cover the chat
+            let gone = loadingView(in: chat.view).map { $0.isHidden } ?? false
+            NSLog("[SelfTest] %@ loading screen: page said shown=%d, the screen is gone=%d", sawShown && gone ? "PASS" : "FAIL", sawShown ? 1 : 0, gone ? 1 : 0)
             NSLog("[SelfTest] DONE pass=%@ fail=%@", String(describing: payload["pass"] ?? 0), String(describing: payload["fail"] ?? 0))
         case "selfTestBump":
             SampleCart.bumpFirst((payload["delta"] as? NSNumber)?.intValue ?? 0)

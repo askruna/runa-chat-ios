@@ -18,7 +18,8 @@ public final class RunaChatViewController: UIViewController {
 
     private var webView: WKWebView!
     private var bottomConstraint: NSLayoutConstraint!
-    private var spinner: UIActivityIndicatorView!
+    private var loading: LoadingView!
+    private var hideLoadingLater: DispatchWorkItem?     // the fallback if the page never says `shown`
     private var errorView: UIView!
     private var pageReady = false
     private var navBarWasHidden: Bool?
@@ -35,6 +36,7 @@ public final class RunaChatViewController: UIViewController {
     required init?(coder: NSCoder) { fatalError("use init(options:delegate:)") }
 
     deinit {
+        hideLoadingLater?.cancel()
         webView?.configuration.userContentController.removeScriptMessageHandler(forName: "runa")
         NotificationCenter.default.removeObserver(self)
     }
@@ -70,13 +72,15 @@ public final class RunaChatViewController: UIViewController {
             bottomConstraint,
         ])
 
-        spinner = UIActivityIndicatorView(style: .large)
-        spinner.hidesWhenStopped = true
-        spinner.translatesAutoresizingMaskIntoConstraints = false
-        root.addSubview(spinner)
+        let client = options.client.trimmingCharacters(in: .whitespaces)
+        loading = LoadingView(title: client.isEmpty ? "Ask" : "Ask " + client.prefix(1).uppercased() + client.dropFirst())
+        loading.translatesAutoresizingMaskIntoConstraints = false
+        root.addSubview(loading)
         NSLayoutConstraint.activate([
-            spinner.centerXAnchor.constraint(equalTo: root.centerXAnchor),
-            spinner.centerYAnchor.constraint(equalTo: root.centerYAnchor),
+            loading.topAnchor.constraint(equalTo: root.topAnchor),
+            loading.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+            loading.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            loading.trailingAnchor.constraint(equalTo: root.trailingAnchor),
         ])
 
         errorView = buildErrorView()
@@ -97,7 +101,7 @@ public final class RunaChatViewController: UIViewController {
         super.viewDidLoad()
         Self.current = self
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillChange(_:)), name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
-        spinner.startAnimating()
+        loading.show()
         webView.load(URLRequest(url: pageURL))
     }
 
@@ -180,15 +184,26 @@ public final class RunaChatViewController: UIViewController {
 
     @objc private func retryTapped() {
         errorView.isHidden = true
-        spinner.startAnimating()
+        loading.show()
         pageReady = false
         webView.load(URLRequest(url: pageURL))
     }
 
     @objc private func closeTapped() { close() }
 
+    /// The loading screen goes when the page says the chat has drawn (`shown`); after `ready` or the page load it goes
+    /// within 4 s anyway.
+    private func hideLoadingSoon() {
+        hideLoadingLater?.cancel()
+        guard loading.isShowing else { return }
+        let item = DispatchWorkItem { [weak self] in self?.loading.hide(animated: true) }
+        hideLoadingLater = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4, execute: item)
+    }
+
     private func showError() {
-        spinner.stopAnimating()
+        hideLoadingLater?.cancel()
+        loading.hide(animated: false)
         errorView.isHidden = false
     }
 
@@ -204,6 +219,11 @@ public final class RunaChatViewController: UIViewController {
         case "ready":
             pageReady = true
             sendCart()
+            hideLoadingSoon()
+        case "shown":
+            // the chat has drawn: the loading screen fades into it
+            hideLoadingLater?.cancel()
+            loading.hide(animated: true)
         case "setQty":
             let product = RunaChat.Product(payload)
             let qty = max(0, (payload["qty"] as? NSNumber)?.intValue ?? 0)
@@ -299,7 +319,7 @@ extension RunaChatViewController: WKNavigationDelegate, WKUIDelegate {
     }
 
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        spinner.stopAnimating()
+        hideLoadingSoon()
     }
 
     public func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {

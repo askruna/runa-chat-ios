@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'RunaChat'
-  s.version          = '1.1.0'
+  s.version          = '1.1.1'
   s.summary          = 'The Runa AI shopping assistant as a screen in your iOS app.'
   s.description      = 'The Runa AI shopping assistant as a screen in your app. One call to open, three delegate methods to connect your cart and your product screen; the chat itself is hosted and updated by Runa.'
   s.homepage         = 'https://github.com/askruna/runa-chat-ios'

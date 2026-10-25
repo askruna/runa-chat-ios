@@ -12,7 +12,8 @@ enum SearchSelfTest {
     static weak var main: MainViewController?
     private static var started = false
     private static var expectedAsk = ""
-    private static var askedAnything = false     // after the follow-up's chat: "Ask me anything" opens an empty chat
+    private static var askedAnything = false
+    private static var chatShown = false     // after the follow-up's chat: "Ask me anything" opens an empty chat
     private static var pass = 0, fail = 0
 
     static func step(_ line: String) {
@@ -77,7 +78,12 @@ enum SearchSelfTest {
             step(payload["line"] as? String ?? "")
         case "selfTestShot":
             NSLog("[SelfTest] SHOT %@", payload["name"] as? String ?? "")
+        case "shown":
+            chatShown = true
         case "selfTestChatDone":
+            let gone = SelfTest.loadingView(in: chat.view).map { $0.isHidden } ?? false
+            check(chatShown && gone, "the chat's loading screen went once the chat drew (shown=\(chatShown), gone=\(gone))")
+            chatShown = false
             // back to the search screen, where the shopper types a new search
             guard let nav = chat.navigationController, let screen = nav.viewControllers.first(where: { $0 is SearchViewController }) as? SearchViewController else {
                 check(false, "chat was opened on the search screen's navigation stack"); return
