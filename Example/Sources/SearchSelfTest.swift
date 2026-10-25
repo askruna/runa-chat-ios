@@ -12,6 +12,7 @@ enum SearchSelfTest {
     static weak var main: MainViewController?
     private static var started = false
     private static var expectedAsk = ""
+    private static var askedAnything = false     // after the follow-up's chat: "Ask me anything" opens an empty chat
     private static var pass = 0, fail = 0
 
     static func step(_ line: String) {
@@ -74,13 +75,26 @@ enum SearchSelfTest {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { webView(in: chat.view)?.evaluateJavaScript("window.__runaAsk = \(ask)[0];" + chatScript, completionHandler: nil) }
         case "selfTestStep":
             step(payload["line"] as? String ?? "")
+        case "selfTestShot":
+            NSLog("[SelfTest] SHOT %@", payload["name"] as? String ?? "")
         case "selfTestChatDone":
             // back to the search screen, where the shopper types a new search
             guard let nav = chat.navigationController, let screen = nav.viewControllers.first(where: { $0 is SearchViewController }) as? SearchViewController else {
                 check(false, "chat was opened on the search screen's navigation stack"); return
             }
             nav.popToViewController(screen, animated: false)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { screen.runSearch("basmati rice") }
+            if !askedAnything {
+                // "Ask me anything" in the answer → the chat screen with no question, credited to Ask Quicklly in search
+                askedAnything = true
+                expectedAsk = ""
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    webView(in: screen.answer)?.evaluateJavaScript("(function(){var b=document.querySelector('.runa-sb .runa-sb__chip--ask'); if(!b) return false; b.click(); return true;})()") { r, _ in
+                        if (r as? Bool) != true { check(false, "\"Ask me anything\" button in the answer"); screen.runSearch("basmati rice") }
+                    }
+                }
+            } else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { screen.runSearch("basmati rice") }
+            }
         default:
             break
         }
@@ -160,6 +174,21 @@ enum SearchSelfTest {
       function ok(c, label) { post('selfTestStep', { line: (c ? 'PASS ' : 'FAIL ') + label }); }
       (async function () {
         var q = Object.fromEntries(new URLSearchParams(location.search));
+        if (!window.__runaAsk) {
+          ok(!q.q && q.entry === 'search_answers', '"Ask me anything" → chat opened without a question (q=' + (q.q || 'none') + '), entry=' + q.entry);
+          ok(!!(await waitFor(function () { return document.querySelector('.runa-c__window--app .runa-c__composer-text'); }, 30000)), 'chat rendered in app mode, message box ready');
+          await sleep(1500);
+          // the shopper's own messages: the earlier conversation is restored (its answer may still be arriving), nothing new is sent
+          var m1 = document.querySelectorAll('.runa-c__msg-block--user').length;
+          await sleep(4000);
+          var m2 = document.querySelectorAll('.runa-c__msg-block--user').length;
+          var box = (document.querySelector('.runa-c__composer-text').value || '').trim();
+          ok(m1 === m2 && box === '', 'nothing sent by itself: shopper messages ' + m1 + ' → ' + m2 + ' over 4 s, the message box is empty' + (box ? ' (it holds "' + box + '")' : ''));
+          post('selfTestShot', { name: 'search-ask-chat' });
+          await sleep(2500);
+          post('selfTestChatDone');
+          return;
+        }
         ok(!!window.__runaAsk && q.q === window.__runaAsk && q.entry === 'search_answers', 'chip → chat opened with q="' + q.q + '", entry=' + q.entry);
         ok(!!(await waitFor(function () { return document.querySelector('.runa-c__window--app'); }, 30000)), 'chat rendered in app mode');
         ok(!!(await waitFor(function () { return document.body.innerText.indexOf(window.__runaAsk) >= 0; }, 20000)), 'the question was sent as the first message');
