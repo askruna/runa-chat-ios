@@ -10,6 +10,16 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         w.rootViewController = UINavigationController(rootViewController: main)
         w.makeKeyAndVisible()
         window = w
+        // `--page-base <url>`: Runa's tests serve the pages from the laptop
+        if let i = CommandLine.arguments.firstIndex(of: "--page-base"), i + 1 < CommandLine.arguments.count {
+            MainViewController.pageBase = URL(string: CommandLine.arguments[i + 1])
+        }
+        // `--self-test-search`: open the search screen for "cow milk" and run the checks (SearchSelfTest.swift).
+        if CommandLine.arguments.contains("--self-test-search") {
+            SearchSelfTest.enabled = true
+            SearchSelfTest.main = main
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { main.openSearch(query: "cow milk") }
+        }
         // `--self-test`: open the chat at once and run the checks inside it (see SelfTest.swift).
         if CommandLine.arguments.contains("--self-test") {
             SelfTest.enabled = true

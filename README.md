@@ -1,14 +1,16 @@
 # Runa Chat for iOS
 
-The Runa AI shopping assistant ("Ask Quicklly") as a screen in your iOS app. One package, one
-call to open it, three delegate methods to connect it to your cart and your product screen.
+The Runa AI shopping assistant ("Ask Quicklly") in your iOS app: the chat as a screen, Ask
+Quicklly in search as a view above your search results, and one call after checkout so orders
+count what Ask Quicklly sold. One package, three delegate methods to connect it to your cart and
+your product screen.
 
 The chat itself is hosted and updated by Runa and shown full screen by the library's own view
 controller, so improvements reach your users without app releases. The app provides only what the
 app alone can do: who and where the shopper is, adding to the cart, what is in the cart, and
 opening your product screen.
 
-- Swift, UIKit + WebKit only, no other dependencies
+- Swift, UIKit + WebKit + SafariServices only, no other dependencies
 - iOS 13+, tested on iOS 16.4
 - Swift Package Manager or CocoaPods
 
@@ -18,13 +20,13 @@ opening your product screen.
 `https://github.com/askruna/runa-chat-ios` (or add it to your `Package.swift`):
 
 ```swift
-.package(url: "https://github.com/askruna/runa-chat-ios", from: "1.0.3")
+.package(url: "https://github.com/askruna/runa-chat-ios", from: "1.1.0")
 ```
 
 **CocoaPods**
 
 ```ruby
-pod 'RunaChat', :git => 'https://github.com/askruna/runa-chat-ios.git', :tag => '1.0.3'
+pod 'RunaChat', :git => 'https://github.com/askruna/runa-chat-ios.git', :tag => '1.1.0'
 ```
 
 ## Use
@@ -90,10 +92,62 @@ so a new store row can be drawn without a lookup. Prices, images and terms come 
 Everything runs on the main thread. Keyboard, safe areas, the navigation bar, outside links,
 loading and error states are the library's job — see https://quicklly.askruna.ai/app/docs/.
 
+## Ask Quicklly in search (1.1.0)
+
+A view for your search screen, under the search field and above your own "N products found":
+it shows the products the shopper meant (milk when "cow milk" lists butter first), a line about
+them and follow-up chips. A chip opens the chat screen with that question.
+
+```swift
+let answer = RunaSearchView(options: options, delegate: self)   // the same Options as the chat
+answer.chatDelegate = self                                       // your RunaChatDelegate: a chip opens the chat
+resultsStack.insertArrangedSubview(answer, at: 0)                // above your results, full width
+
+// on every search the shopper makes, with what your own results show:
+answer.search("cow milk", resultCount: 76, firstTitles: titles)  // titles: your first product names (≤ 10)
+answer.clear()                                                   // the search field was cleared
+
+extension SearchViewController: RunaSearchViewDelegate {
+    func runaSearch(_ view: RunaSearchView, setQuantity quantity: Int, of product: RunaChat.Product) { /* your add-to-cart */ }
+    func runaSearchCart(_ view: RunaSearchView) -> [RunaChat.CartItem] { /* your cart */ }
+    func runaSearch(_ view: RunaSearchView, openProduct product: RunaChat.Product) -> Bool { /* your product screen */ return true }
+}
+```
+
+- The view sizes itself through `intrinsicContentSize` (Auto Layout, stack views): a one-line
+  working state, then the answer (about 380 pt); with nothing to show it hides itself. For a table
+  header or manual layout, `runaSearch(_:didChangeHeight:)` tells you when it changes.
+- `resultCount` and `firstTitles` are optional, but they let Ask Quicklly see what your results
+  already show and answer the gap instead of repeating them.
+- A new search reuses the view (no reload). Its product row scrolls sideways inside the view.
+- Optional delegate methods: `runaSearch(_:openChatWith:) -> Bool` (open the chat yourself; by
+  default the library opens it from the view controller the view is in, with `chatDelegate`),
+  `runaSearch(_:openLink:) -> Bool`, `runaSearch(_:didReceive:payload:)`.
+- `notifyCartChanged()` and `updateAddress(…)` reach the search view too.
+
+## Orders (1.1.0)
+
+After your checkout succeeds, report the order. The library hands it to Runa's order page in a
+web view the shopper never sees; it counts the products the shopper added from Ask Quicklly or
+opened from it in the last 30 days, the same rule as on quicklly.com, and lets go.
+
+```swift
+let order = RunaChat.Order(orderNumber: "QD237898", total: 54.32, lines: [   // your order number, the total paid
+    RunaChat.OrderLine(pid: "706824", sid: "112333", price: 7.59, quantity: 2),   // unit price paid
+    RunaChat.OrderLine(pid: "905", sid: "112333", price: 15.45, quantity: 1),
+])
+RunaChat.orderPlaced(options: options, order: order) { reported, reason in }   // completion optional
+```
+
+Send only the order number, the amounts and the lines: no names, addresses or payment details.
+An order is counted once (the same order number again is ignored).
+
 ## Sample app
 
-`Example/` is a small app standing in for a retailer's app: a cart, a product screen and an
-"Ask Quicklly" button. Everything a retailer writes is in `MainViewController`.
+`Example/` is a small app standing in for a retailer's app: a cart, a product screen, an
+"Ask Quicklly" button, a search screen with Ask Quicklly in search (`SearchViewController`) and a
+"Place order" button. Everything a retailer writes is in `MainViewController` (`options()`,
+`openChat`, `placeOrder`) and `SearchViewController`.
 
 ```
 cd Example && xcodegen generate        # https://github.com/yonaskolb/XcodeGen
@@ -101,14 +155,20 @@ open RunaChatSample.xcodeproj
 ```
 
 Launched with the `--self-test` argument it opens the chat and runs the checks in
-`SelfTest.swift` against the real chat screen; the results are printed to the console
-(`tests/run-simulator.sh` does this on a simulator).
+`SelfTest.swift` against the real chat screen; `--self-test-search` does the same for the search
+view and `orderPlaced` (`SearchSelfTest.swift`). The results are printed to the console:
+`tests/run-simulator.sh` and `MODE=search tests/run-simulator.sh` run them on a simulator.
 
 ## Documentation
 
 The integration guide, the test checklist and a live demo: https://quicklly.askruna.ai/app/docs/.
-The chat itself is hosted and updated by Runa, so improvements reach your users without an app
-release; the library only needs the three delegate methods above.
+The chat and the search answers are hosted and updated by Runa, so improvements reach your users
+without an app release; the library only needs the three delegate methods above.
+
+## Versions
+
+- **1.1.0** — `RunaSearchView` (Ask Quicklly in search), `RunaChat.orderPlaced`.
+- **1.0.3** — in-app browser fallback for outside links; `openProduct` required.
 
 ## License
 

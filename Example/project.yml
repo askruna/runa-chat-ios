@@ -21,6 +21,10 @@ targets:
         CFBundleDisplayName: Runa Chat sample
         CFBundleShortVersionString: "1.0-sample"
         UILaunchScreen: {}
+        # Runa's own tests only: the pages served over http from the laptop (--page-base). The live pages are https.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+          NSAllowsArbitraryLoadsInWebContent: true
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
     settings:
       base:

@@ -7,7 +7,6 @@ import SafariServices
 /// Opened by `RunaChat.open`, or push/present it yourself.
 public final class RunaChatViewController: UIViewController {
 
-    private static let bridgeVersion = "1.0"
     private static let backTimeout: TimeInterval = 0.4
 
     static weak var current: RunaChatViewController?
@@ -198,14 +197,7 @@ public final class RunaChatViewController: UIViewController {
     fileprivate func handle(_ body: Any, from frame: WKFrameInfo) {
         // Only our page talks to the app.
         guard frame.isMainFrame, let host = frame.securityOrigin.host as String?, pageURL.host == host else { return }
-        var msg: [String: Any]?
-        if let s = body as? String, let data = s.data(using: .utf8) {
-            msg = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-        } else {
-            msg = body as? [String: Any]
-        }
-        guard let message = msg, let type = message["type"] as? String else { return }
-        let payload = message["payload"] as? [String: Any] ?? [:]
+        guard let (type, payload, _) = RunaChat.parse(body) else { return }
         if options.debug { print("[RunaChat] page→app \(type) \(payload)") }
 
         switch type {
@@ -243,13 +235,7 @@ public final class RunaChatViewController: UIViewController {
     /// chat (SFSafariViewController, with its own Done button), so the shopper never leaves the app.
     /// Anything that is not http(s) — mailto:, tel:, another app's scheme — goes to the system.
     private func openInApp(_ url: URL) {
-        guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
-            UIApplication.shared.open(url)
-            return
-        }
-        let sheet = SFSafariViewController(url: url)
-        sheet.modalPresentationStyle = .pageSheet
-        (presentedViewController ?? self).present(sheet, animated: true)
+        RunaChat.openInApp(url, from: self)
     }
 
     /// Close the chat screen (pop when pushed, dismiss when presented).
@@ -275,12 +261,7 @@ public final class RunaChatViewController: UIViewController {
     }
 
     private func post(_ type: String, _ payload: [String: Any], requestId: String? = nil) {
-        var msg: [String: Any] = ["type": type, "payload": payload, "v": Self.bridgeVersion]
-        if let r = requestId { msg["requestId"] = r }
-        guard let data = try? JSONSerialization.data(withJSONObject: msg),
-              let json = String(data: data, encoding: .utf8),
-              let lit = try? JSONSerialization.data(withJSONObject: json, options: .fragmentsAllowed),
-              let literal = String(data: lit, encoding: .utf8) else { return }
+        guard let literal = RunaChat.json(type, payload, requestId: requestId) else { return }
         if options.debug { print("[RunaChat] app→page \(type) \(payload)") }
         webView.evaluateJavaScript("window.RunaBridge&&window.RunaBridge.receive(\(literal));", completionHandler: nil)
     }
@@ -288,29 +269,13 @@ public final class RunaChatViewController: UIViewController {
     // MARK: - URL
 
     private static func buildURL(_ o: RunaChat.Options) -> URL {
-        var c = URLComponents(url: o.pageURL, resolvingAgainstBaseURL: false) ?? URLComponents()
-        var q = c.queryItems ?? []
-        func put(_ k: String, _ v: String?) {
-            let t = v?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            if !t.isEmpty { q.append(URLQueryItem(name: k, value: t)) }
-        }
-        put("zip", o.zip)
-        put("userId", o.userId)
-        put("platform", "ios")
-        put("appVersion", Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
-        put("address", o.address)
-        put("city", o.city)
-        put("state", o.state)
-        put("storeId", o.storeId)
-        put("q", o.question)
-        if o.debug { put("debug", "1") }
-        c.queryItems = q
-        return c.url ?? o.pageURL
+        var q = RunaChat.shopperQuery(o)
+        if let t = o.question?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty { q.append(URLQueryItem(name: "q", value: t)) }
+        if let e = o.entry, !e.isEmpty { q.append(URLQueryItem(name: "entry", value: e)) }      // "search_answers": opened from RunaSearchView
+        return RunaChat.url(o.pageURL, q)
     }
 
-    private static func originOf(_ u: URL) -> String {
-        "\(u.scheme ?? "https")://\(u.host ?? "")"
-    }
+    private static func originOf(_ u: URL) -> String { RunaChat.originOf(u) }
 
     private func isOurOrigin(_ u: URL?) -> Bool {
         guard let u = u else { return false }

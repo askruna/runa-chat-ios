@@ -19,8 +19,9 @@ final class SampleCart {
     static var snapshot: [RunaChat.CartItem] { lines.map { RunaChat.CartItem(pid: $0.pid, sid: $0.sid, quantity: $0.qty) } }
 }
 
-/// A stand-in for the Quicklly app: a cart, a product screen and an "Ask Quicklly" button.
-/// Everything a retailer writes is `openChat` and the `RunaChatDelegate` extension below.
+/// A stand-in for the Quicklly app: a cart, a product screen, a search screen with Ask Quicklly in search
+/// (SearchViewController), an "Ask Quicklly" button and a checkout. Everything a retailer writes is `options()`,
+/// `openChat`, `placeOrder` and the delegate extensions.
 final class MainViewController: UIViewController {
     private let cartLabel = UILabel()
 
@@ -51,6 +52,14 @@ final class MainViewController: UIViewController {
         deep.setTitle("Ask about paneer (deep link)", for: .normal)
         deep.addTarget(self, action: #selector(deepTapped), for: .touchUpInside)
         stack.addArrangedSubview(deep)
+        let search = UIButton(type: .system)
+        search.setTitle("Search", for: .normal)
+        search.addTarget(self, action: #selector(searchTapped), for: .touchUpInside)
+        stack.addArrangedSubview(search)
+        let order = UIButton(type: .system)
+        order.setTitle("Place order", for: .normal)
+        order.addTarget(self, action: #selector(orderTapped), for: .touchUpInside)
+        stack.addArrangedSubview(order)
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -64,17 +73,48 @@ final class MainViewController: UIViewController {
 
     @objc private func askTapped() { openChat(question: nil) }
     @objc private func deepTapped() { openChat(question: "What can I cook tonight with paneer?") }
+    @objc private func searchTapped() { openSearch(query: nil) }
+    @objc private func orderTapped() { placeOrder(completion: nil) }
+
+    func openSearch(query: String?) {
+        navigationController?.pushViewController(SearchViewController(query: query, chat: self), animated: true)
+    }
+
+    /// Runa's own tests: the folder the pages are served from (`--page-base http://…/`). nil = the live pages.
+    static var pageBase: URL?
 
     // ─── This is the whole integration ────────────────────────────────────────────────────
-    func openChat(question: String?) {
+
+    /// Who and where the shopper is — the same for the chat, the search view and the order report.
+    static func options() -> RunaChat.Options {
         var options = RunaChat.Options(client: "quicklly", zip: "60610")   // the client key from Runa
         options.userId = "sample-user-1"
         options.address = "1140 N Wells St, Chicago"
         options.city = "Chicago"
         options.state = "IL"
-        options.question = question
         options.debug = true
+        if let base = pageBase { options.pageURLOverride = base.appendingPathComponent("chat-app.html") }   // Runa's tests only
+        return options
+    }
+
+    func openChat(question: String?) {
+        var options = Self.options()
+        options.question = question
         RunaChat.open(from: self, options: options, delegate: self)
+    }
+
+    /// After your checkout succeeds: the order number, what was paid for the products, and the lines.
+    func placeOrder(completion: ((Bool, String?) -> Void)?) {
+        let lines = SampleCart.lines.map { RunaChat.OrderLine(pid: $0.pid, sid: $0.sid, price: $0.price ?? 0, quantity: $0.qty) }
+        let total = (SampleCart.lines.reduce(0) { $0 + ($1.price ?? 0) * Double($1.qty) } * 100).rounded() / 100
+        let order = RunaChat.Order(orderNumber: "SAMPLE-\(Int(Date().timeIntervalSince1970))", total: total, lines: lines)
+        RunaChat.orderPlaced(options: Self.options(), order: order) { reported, reason in
+            NSLog("[Sample] order reported=%d reason=%@ lines=%d", reported ? 1 : 0, reason ?? "nil", lines.count)
+            completion?(reported, reason)
+        }
+        NSLog("[Sample] placeOrder %d line(s), total %.2f", lines.count, total)
+        SampleCart.lines = []
+        refresh()
     }
 }
 
@@ -107,6 +147,7 @@ extension MainViewController: RunaChatDelegate {
 
     func runaChat(_ chat: RunaChatViewController, didReceive type: String, payload: [String: Any]) {
         SelfTest.handle(type: type, payload: payload, chat: chat)   // test-only; a real app ignores or logs these
+        SearchSelfTest.chatMessage(type: type, payload: payload, chat: chat)   // test-only
     }
 }
 

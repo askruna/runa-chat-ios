@@ -1,5 +1,6 @@
 import UIKit
 import WebKit
+import SafariServices
 
 /// Runa Chat — the AI shopping assistant as a screen in your app.
 ///
@@ -16,6 +17,9 @@ import WebKit
 ///
 /// The chat is hosted and updated by Runa and shown full screen; improvements reach your users without app releases.
 /// The app answers the two delegate calls above (the others are optional). Everything runs on the main thread.
+///
+/// Also in this library: `RunaSearchView`, Ask Quicklly's answer above your own search results, and
+/// `RunaChat.orderPlaced`, which reports an order so the sales Ask Quicklly brought are counted.
 public enum RunaChat {
 
     /// Who the client is and who / where the shopper is. The client key and the ZIP are required.
@@ -36,8 +40,11 @@ public enum RunaChat {
         public var question: String?
         /// Print every message between the app and the page.
         public var debug = false
-        /// Runa's own use: a test page instead of the client's live page.
+        /// Runa's own use: a test page instead of the client's live page (the chat page; the search and order
+        /// pages are taken from the same folder).
         public var pageURLOverride: URL?
+        /// Where a chat started, for the client's analytics: "search_answers" when opened from `RunaSearchView`.
+        var entry: String?
 
         public init(client: String, zip: String) {
             self.client = client.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -46,8 +53,45 @@ public enum RunaChat {
         }
 
         /// The chat page for this client. Runa hosts it; the key is all the app needs to know.
-        var pageURL: URL {
-            pageURLOverride ?? URL(string: "https://\(client).askruna.ai/app/chat-app.html")!
+        var pageURL: URL { pageURL(for: "chat-app.html") }
+
+        /// One of this client's pages: chat-app.html, search-app.html (RunaSearchView), order-app.html (orderPlaced).
+        func pageURL(for page: String) -> URL {
+            if let o = pageURLOverride { return o.deletingLastPathComponent().appendingPathComponent(page) }
+            return URL(string: "https://\(client).askruna.ai/app/\(page)")!
+        }
+    }
+
+    /// An order the shopper just placed in your app, for `orderPlaced`.
+    public struct Order {
+        public var orderNumber: String
+        /// What the shopper pays for the products, before delivery fee and tip.
+        public var total: Double
+        public var currency = "USD"
+        public var lines: [OrderLine]
+
+        /// - Parameters:
+        ///   - orderNumber: your order number, e.g. "QD237954" (an order is reported once per number)
+        ///   - total: what the shopper pays for the products, before delivery fee and tip
+        ///   - lines: one per product: your product id, store id, unit price and quantity
+        public init(orderNumber: String, total: Double, lines: [OrderLine]) {
+            self.orderNumber = orderNumber
+            self.total = total
+            self.lines = lines
+        }
+    }
+
+    /// One line of an `Order`.
+    public struct OrderLine {
+        public let pid: String
+        public let sid: String
+        public let price: Double
+        public let quantity: Int
+        public init(pid: String, sid: String, price: Double, quantity: Int) {
+            self.pid = pid
+            self.sid = sid
+            self.price = price
+            self.quantity = quantity
         }
     }
 
@@ -120,11 +164,84 @@ public enum RunaChat {
     /// Call after the cart changes outside the chat (cart screen, product screen) while the chat may be open.
     public static func notifyCartChanged() {
         RunaChatViewController.current?.sendCart()
+        RunaSearchView.all.forEach { $0.sendCart() }
     }
 
     /// The shopper changed the delivery address. An open chat re-scopes to it and starts a new conversation.
     public static func updateAddress(zip: String, address: String?, city: String?, state: String?) {
         RunaChatViewController.current?.sendAddress(zip: zip, address: address, city: city, state: state)
+        RunaSearchView.all.forEach { $0.sendAddress(zip: zip, address: address, city: city, state: state) }
+    }
+
+    /// Report an order right after checkout, so the products Ask Quicklly brought to it are counted as its sales
+    /// (what it added or opened in the 30 days before, the same rule as on your website). Call it once per order,
+    /// on the main thread, with the same client key and userId as the chat; it returns at once and works in the
+    /// background (a few seconds, no UI). The optional completion hears whether it was reported, and why not.
+    public static func orderPlaced(options: Options, order: Order, completion: ((_ reported: Bool, _ reason: String?) -> Void)? = nil) {
+        OrderReporter(options: options, order: order, completion: completion).start()
+    }
+
+    /// Every page gets who and where the shopper is and which app build asks.
+    static func shopperQuery(_ o: Options) -> [URLQueryItem] {
+        var q: [URLQueryItem] = []
+        func put(_ k: String, _ v: String?) {
+            let t = v?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !t.isEmpty { q.append(URLQueryItem(name: k, value: t)) }
+        }
+        put("zip", o.zip)
+        put("userId", o.userId)
+        put("platform", "ios")
+        put("appVersion", Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
+        put("address", o.address)
+        put("city", o.city)
+        put("state", o.state)
+        put("storeId", o.storeId)
+        if o.debug { put("debug", "1") }
+        return q
+    }
+
+    static func url(_ base: URL, _ items: [URLQueryItem]) -> URL {
+        var c = URLComponents(url: base, resolvingAgainstBaseURL: false) ?? URLComponents()
+        c.queryItems = (c.queryItems ?? []) + items
+        // "+" is a space to the page's URLSearchParams: keep it literal
+        c.percentEncodedQuery = c.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
+        return c.url ?? base
+    }
+
+    static func originOf(_ u: URL) -> String { "\(u.scheme ?? "https")://\(u.host ?? "")" }
+
+    static func json(_ type: String, _ payload: [String: Any], requestId: String? = nil) -> String? {
+        var msg: [String: Any] = ["type": type, "payload": payload, "v": bridgeVersion]
+        if let r = requestId { msg["requestId"] = r }
+        guard let data = try? JSONSerialization.data(withJSONObject: msg),
+              let s = String(data: data, encoding: .utf8),
+              let lit = try? JSONSerialization.data(withJSONObject: s, options: .fragmentsAllowed) else { return nil }
+        return String(data: lit, encoding: .utf8)
+    }
+
+    static func parse(_ body: Any) -> (type: String, payload: [String: Any], requestId: String?)? {
+        var msg: [String: Any]?
+        if let s = body as? String, let data = s.data(using: .utf8) {
+            msg = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        } else {
+            msg = body as? [String: Any]
+        }
+        guard let m = msg, let type = m["type"] as? String else { return nil }
+        return (type, m["payload"] as? [String: Any] ?? [:], m["requestId"] as? String)
+    }
+
+    static let bridgeVersion = "1.1"
+
+    /// The fallback when the app does not handle a link itself: an in-app browser sheet (SFSafariViewController,
+    /// with its own Done button), so the shopper never leaves the app. Anything that is not http(s) goes to the system.
+    static func openInApp(_ url: URL, from vc: UIViewController?) {
+        guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https", let vc = vc else {
+            UIApplication.shared.open(url)
+            return
+        }
+        let sheet = SFSafariViewController(url: url)
+        sheet.modalPresentationStyle = .pageSheet
+        (vc.presentedViewController ?? vc).present(sheet, animated: true)
     }
 
     /// Optional: call once early (e.g. when the grocery tab opens) so the first open of the chat is faster.
