@@ -137,7 +137,7 @@ this call from 1.1.2).
 
 After your checkout succeeds, report the order. The library hands it to Runa's order page in a
 web view the shopper never sees; it counts the products the shopper added from Ask Quicklly or
-opened from it in the last 30 days, the same rule as on quicklly.com, and lets go.
+opened from it in the last 7 days, the same rule as on quicklly.com, and lets go.
 
 ```swift
 let order = RunaChat.Order(orderNumber: "QD237898", total: 54.32, lines: [   // your order number, the total paid

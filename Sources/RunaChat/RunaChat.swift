@@ -174,7 +174,7 @@ public enum RunaChat {
     }
 
     /// Report an order right after checkout, so the products Ask Quicklly brought to it are counted as its sales
-    /// (what it added or opened in the 30 days before, the same rule as on your website). Call it once per order,
+    /// (what it added or opened in the 7 days before, the same rule as on your website). Call it once per order,
     /// on the main thread, with the same client key and userId as the chat; it returns at once and works in the
     /// background (a few seconds, no UI). The optional completion hears whether it was reported, and why not.
     public static func orderPlaced(options: Options, order: Order, completion: ((_ reported: Bool, _ reason: String?) -> Void)? = nil) {
