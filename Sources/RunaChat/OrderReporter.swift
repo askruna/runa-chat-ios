@@ -33,7 +33,11 @@ final class OrderReporter: NSObject {
         wv.isUserInteractionEnabled = false
         keyWindow?.addSubview(wv)
         webView = wv
-        let url = RunaChat.url(options.pageURL(for: "order-app.html"), RunaChat.shopperQuery(options))
+        // No personal data (1.1.2): the customer id the chat already uses, the platform and app version — not the ZIP,
+        // delivery address, city or state the chat is given.
+        let keep: Set<String> = ["userId", "platform", "appVersion", "debug"]
+        let url = RunaChat.url(options.pageURL(for: "order-app.html"), RunaChat.shopperQuery(options).filter { keep.contains($0.name) })
+        if options.debug { print("[RunaChat] order page \(url.absoluteString)") }
         origin = RunaChat.originOf(url)
         wv.load(URLRequest(url: url))
         DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in self?.finish(false, "timeout") }

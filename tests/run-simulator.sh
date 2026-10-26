@@ -57,6 +57,8 @@ if [ "$MODE" = search ]; then
   # the order page's answer carries Ask Quicklly's sales in the order (what was added from the search view)
   SALES=$(grep -E "order page→app done" "$OUT/console.log" | grep -oE '"sales": [0-9.]+' | head -1 | grep -oE '[0-9.]+$' || true)
   if [ -n "$SALES" ] && awk "BEGIN{exit !($SALES > 0)}"; then echo "SelfTest: PASS the order was reported with Ask Quicklly sales \$$SALES"; else echo "SelfTest: FAIL no Ask Quicklly sales in the order report"; exit 1; fi
+  OURL=$(grep -oE "order page [^ ]+" "$OUT/console.log" | head -1 | cut -d' ' -f3)
+  if [ -n "$OURL" ] && echo "$OURL" | grep -q "userId=" && ! echo "$OURL" | grep -qE "[?&](zip|address|city|state)="; then echo "SelfTest: PASS no personal data in the order call: ?${OURL#*\?}"; else echo "SelfTest: FAIL the order call carries address details: $OURL"; exit 1; fi
   grep -qE "\[SelfTest\] DONE pass=[0-9]+ fail=0" "$OUT/console.log"
   exit $?
 fi

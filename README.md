@@ -20,13 +20,13 @@ opening your product screen.
 `https://github.com/askruna/runa-chat-ios` (or add it to your `Package.swift`):
 
 ```swift
-.package(url: "https://github.com/askruna/runa-chat-ios", from: "1.1.1")
+.package(url: "https://github.com/askruna/runa-chat-ios", from: "1.1.2")
 ```
 
 **CocoaPods**
 
 ```ruby
-pod 'RunaChat', :git => 'https://github.com/askruna/runa-chat-ios.git', :tag => '1.1.1'
+pod 'RunaChat', :git => 'https://github.com/askruna/runa-chat-ios.git', :tag => '1.1.2'
 ```
 
 ## Use
@@ -36,7 +36,7 @@ import RunaChat
 
 var options = RunaChat.Options(client: "quicklly",                      // your client key from Runa
                                zip: "60610")                            // the delivery ZIP (required)
-options.userId = "12345"                                                // customer id, or a stable id for guests
+options.userId = "12345"                                                // your app's user id; guests: a random id saved once in the app
 options.address = "1140 N Wells St, Chicago"; options.city = "Chicago"; options.state = "IL"
 RunaChat.open(from: self, options: options, delegate: self)             // pushed, or presented full screen
 
@@ -125,7 +125,15 @@ extension SearchViewController: RunaSearchViewDelegate {
   `runaSearch(_:openLink:) -> Bool`, `runaSearch(_:didReceive:payload:)`.
 - `notifyCartChanged()` and `updateAddress(…)` reach the search view too.
 
-## Orders (1.1.0)
+## Order tracking for analytics (optional, 1.1.0)
+
+Optional, for analytics only: this is how the results board counts the app's orders and the Ask
+Quicklly sales in them. The chat and the search view work without it.
+
+**No personal data:** the order number, the total and the products (pid, sid, unit price paid,
+quantity), with the user id the chat already uses. No names, emails,
+phone numbers, addresses, ZIP or payment details (the ZIP, address, city and state are left out of
+this call from 1.1.2).
 
 After your checkout succeeds, report the order. The library hands it to Runa's order page in a
 web view the shopper never sees; it counts the products the shopper added from Ask Quicklly or
@@ -167,6 +175,7 @@ without an app release; the library only needs the three delegate methods above.
 
 ## Versions
 
+- **1.1.2** — the order call (analytics) sends no ZIP, address, city or state: only the order, its products and the customer id.
 - **1.1.1** — the chat's loading screen: the Ask Quicklly mark (the search answer's sparkle in a spinning ring) instead of a plain spinner, until the chat has drawn.
 - **1.1.0** — `RunaSearchView` (Ask Quicklly in search), `RunaChat.orderPlaced`.
 - **1.0.3** — in-app browser fallback for outside links; `openProduct` required.
