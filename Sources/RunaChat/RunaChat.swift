@@ -18,8 +18,9 @@ import SafariServices
 /// The chat is hosted and updated by Runa and shown full screen; improvements reach your users without app releases.
 /// The app answers the two delegate calls above (the others are optional). Everything runs on the main thread.
 ///
-/// Also in this library: `RunaSearchView`, Ask Quicklly's answer above your own search results, and
-/// `RunaChat.orderPlaced`, which reports an order so the sales Ask Quicklly brought are counted.
+/// Also in this library: `RunaSearchView`, Ask Quicklly's answer above your own search results, `RunaProductView`,
+/// the bundle and the Ask Quicklly line under your product details, and `RunaChat.orderPlaced`, which reports an order
+/// so the sales Ask Quicklly brought are counted.
 public enum RunaChat {
 
     /// Who the client is and who / where the shopper is. The client key and the ZIP are required.
@@ -40,10 +41,13 @@ public enum RunaChat {
         public var question: String?
         /// Print every message between the app and the page.
         public var debug = false
+        /// Your testers' builds: show what is still in preview for shoppers (e.g. `RunaProductView` before it is live).
+        public var preview = false
         /// Runa's own use: a test page instead of the client's live page (the chat page; the search and order
         /// pages are taken from the same folder).
         public var pageURLOverride: URL?
-        /// Where a chat started, for the client's analytics: "search_answers" when opened from `RunaSearchView`.
+        /// Where a chat started, for the client's analytics: "search_answers" when opened from `RunaSearchView`,
+        /// "product_page" from `RunaProductView`.
         var entry: String?
 
         public init(client: String, zip: String) {
@@ -55,7 +59,8 @@ public enum RunaChat {
         /// The chat page for this client. Runa hosts it; the key is all the app needs to know.
         var pageURL: URL { pageURL(for: "chat-app.html") }
 
-        /// One of this client's pages: chat-app.html, search-app.html (RunaSearchView), order-app.html (orderPlaced).
+        /// One of this client's pages: chat-app.html, search-app.html (RunaSearchView), product-app.html (RunaProductView),
+        /// order-app.html (orderPlaced).
         func pageURL(for page: String) -> URL {
             if let o = pageURLOverride { return o.deletingLastPathComponent().appendingPathComponent(page) }
             return URL(string: "https://\(client).askruna.ai/app/\(page)")!
@@ -165,12 +170,14 @@ public enum RunaChat {
     public static func notifyCartChanged() {
         RunaChatViewController.current?.sendCart()
         RunaSearchView.all.forEach { $0.sendCart() }
+        RunaProductView.all.forEach { $0.sendCart() }
     }
 
     /// The shopper changed the delivery address. An open chat re-scopes to it and starts a new conversation.
     public static func updateAddress(zip: String, address: String?, city: String?, state: String?) {
         RunaChatViewController.current?.sendAddress(zip: zip, address: address, city: city, state: state)
         RunaSearchView.all.forEach { $0.sendAddress(zip: zip, address: address, city: city, state: state) }
+        RunaProductView.all.forEach { $0.sendAddress(zip: zip, address: address, city: city, state: state) }
     }
 
     /// Report an order right after checkout, so the products Ask Quicklly brought to it are counted as its sales
@@ -230,7 +237,7 @@ public enum RunaChat {
         return (type, m["payload"] as? [String: Any] ?? [:], m["requestId"] as? String)
     }
 
-    static let bridgeVersion = "1.1"
+    static let bridgeVersion = "1.2"   // 1.2: the product view (product, viewport)
 
     /// The fallback when the app does not handle a link itself: an in-app browser sheet (SFSafariViewController,
     /// with its own Done button), so the shopper never leaves the app. Anything that is not http(s) goes to the system.

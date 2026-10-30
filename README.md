@@ -1,8 +1,8 @@
 # Runa Chat for iOS
 
 The Runa AI shopping assistant ("Ask Quicklly") in your iOS app: the chat as a screen, Ask
-Quicklly in search as a view above your search results, and one call after checkout so orders
-count what Ask Quicklly sold. One package, three delegate methods to connect it to your cart and
+Quicklly in search as a view above your search results, Ask Quicklly on the product screen as a view
+under your product details, and one call after checkout so orders count what Ask Quicklly sold. One package, three delegate methods to connect it to your cart and
 your product screen.
 
 The chat itself is hosted and updated by Runa and shown full screen by the library's own view
@@ -20,13 +20,13 @@ opening your product screen.
 `https://github.com/askruna/runa-chat-ios` (or add it to your `Package.swift`):
 
 ```swift
-.package(url: "https://github.com/askruna/runa-chat-ios", from: "1.1.2")
+.package(url: "https://github.com/askruna/runa-chat-ios", from: "1.2.0")
 ```
 
 **CocoaPods**
 
 ```ruby
-pod 'RunaChat', :git => 'https://github.com/askruna/runa-chat-ios.git', :tag => '1.1.2'
+pod 'RunaChat', :git => 'https://github.com/askruna/runa-chat-ios.git', :tag => '1.2.0'
 ```
 
 ## Use
@@ -125,6 +125,35 @@ extension SearchViewController: RunaSearchViewDelegate {
   `runaSearch(_:openLink:) -> Bool`, `runaSearch(_:didReceive:payload:)`.
 - `notifyCartChanged()` and `updateAddress(…)` reach the search view too.
 
+## Ask Quicklly on the product screen (1.2.0)
+
+A view for your product screen, under the product details: what goes with the product, as on
+quicklly.com's product pages — "Recipes" (the dishes it is for, every ingredient from the same store,
+one "Add all" button) or "Goes great with" — and the Ask Quicklly line under it ("Plan meals, build
+your cart"), which opens the chat with "Plan a meal with <product>". Same `Options` as the chat.
+
+```swift
+let bundle = RunaProductView(options: options, delegate: self)   // the same Options as the chat
+bundle.chatDelegate = self                                        // your RunaChatDelegate: the line opens the chat
+detailsStack.addArrangedSubview(bundle)                           // under your product details, full width
+bundle.show(productId: "1013592", storeId: "113189", title: "Okra (bhindi) 1 Lbs")   // the product on screen
+
+extension ProductViewController: RunaProductViewDelegate {
+    func runaProduct(_ view: RunaProductView, setQuantity quantity: Int, of product: RunaChat.Product) { /* your add-to-cart */ }
+    func runaProductCart(_ view: RunaProductView) -> [RunaChat.CartItem] { /* your cart */ }
+    func runaProduct(_ view: RunaProductView, openProduct product: RunaChat.Product) -> Bool { /* your product screen */ return true }
+}
+```
+
+- The view sizes itself (`intrinsicContentSize`: about 400 pt with a bundle, about 70 with the line
+  alone) and hides itself when the product has nothing to suggest; `runaProduct(_:didChangeHeight:)`
+  tells you when it changes.
+- "Add all" calls `setQuantity` once per product; the button then reads "✓ All N in your cart" from your cart.
+- Until it is live for your shoppers the view stays hidden; testers' builds see it with
+  `options.preview = true`. Going live is switched by Runa, with no app release.
+- `show(…)` again when the screen shows another product (no reload). `notifyCartChanged()` and
+  `updateAddress(…)` reach the product view too.
+
 ## Order tracking for analytics (optional, 1.1.0)
 
 Optional, for analytics only: this is how the results board counts the app's orders and the Ask
@@ -153,9 +182,10 @@ An order is counted once (the same order number again is ignored).
 ## Sample app
 
 `Example/` is a small app standing in for a retailer's app: a cart, a product screen, an
-"Ask Quicklly" button, a search screen with Ask Quicklly in search (`SearchViewController`) and a
-"Place order" button. Everything a retailer writes is in `MainViewController` (`options()`,
-`openChat`, `placeOrder`) and `SearchViewController`.
+"Ask Quicklly" button, a search screen with Ask Quicklly in search (`SearchViewController`), the
+product screen with Ask Quicklly's bundle under the details (`ProductViewController`) and a "Place
+order" button. Everything a retailer writes is in `MainViewController` (`options()`, `openChat`,
+`placeOrder`), `SearchViewController` and `ProductViewController`.
 
 ```
 cd Example && xcodegen generate        # https://github.com/yonaskolb/XcodeGen
@@ -164,8 +194,9 @@ open RunaChatSample.xcodeproj
 
 Launched with the `--self-test` argument it opens the chat and runs the checks in
 `SelfTest.swift` against the real chat screen; `--self-test-search` does the same for the search
-view and `orderPlaced` (`SearchSelfTest.swift`). The results are printed to the console:
-`tests/run-simulator.sh` and `MODE=search tests/run-simulator.sh` run them on a simulator.
+view and `orderPlaced` (`SearchSelfTest.swift`), `--self-test-product` for the product view
+(`ProductSelfTest.swift`). The results are printed to the console: `tests/run-simulator.sh`,
+`MODE=search tests/run-simulator.sh` and `MODE=product tests/run-simulator.sh` run them on a simulator.
 
 ## Documentation
 
@@ -175,6 +206,7 @@ without an app release; the library only needs the three delegate methods above.
 
 ## Versions
 
+- **1.2.0** — `RunaProductView` (Ask Quicklly on the product screen), `Options.preview` for testers.
 - **1.1.2** — the order call (analytics) sends no ZIP, address, city or state: only the order, its products and the customer id.
 - **1.1.1** — the chat's loading screen: the Ask Quicklly mark (the search answer's sparkle in a spinning ring) instead of a plain spinner, until the chat has drawn.
 - **1.1.0** — `RunaSearchView` (Ask Quicklly in search), `RunaChat.orderPlaced`.

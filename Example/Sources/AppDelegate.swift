@@ -20,6 +20,11 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
             SearchSelfTest.main = main
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { main.openSearch(query: "cow milk") }
         }
+        // `--self-test-product`: open the product screen for okra and run the checks (ProductSelfTest.swift).
+        if CommandLine.arguments.contains("--self-test-product") {
+            ProductSelfTest.enabled = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { main.openProduct(pid: "1013592", sid: "113189", title: "Okra (bhindi) 1 Lbs", price: 3.39) }
+        }
         // `--self-test`: open the chat at once and run the checks inside it (see SelfTest.swift).
         if CommandLine.arguments.contains("--self-test") {
             SelfTest.enabled = true

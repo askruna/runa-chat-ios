@@ -3,6 +3,7 @@
 # WKWebView. Prints PASS/FAIL lines; exits 1 on any FAIL.
 #   tests/run-simulator.sh                       # the chat (Example/Sources/SelfTest.swift), iPhone 14 Pro Max
 #   MODE=search tests/run-simulator.sh           # RunaSearchView + orderPlaced (Example/Sources/SearchSelfTest.swift)
+#   MODE=product tests/run-simulator.sh          # RunaProductView (Example/Sources/ProductSelfTest.swift)
 #   SIM="iPhone 15" tests/run-simulator.sh
 # The pages can come from the developer's laptop before they are live:
 #   (cd runa_web/build-widget && python3 -m http.server 5521)
@@ -12,7 +13,7 @@ cd "$(dirname "$0")/.."
 
 SIM="${SIM:-iPhone 14 Pro Max}"
 MODE="${MODE:-chat}"
-ARGS=(--self-test); [ "$MODE" = search ] && ARGS=(--self-test-search)
+ARGS=(--self-test); [ "$MODE" = search ] && ARGS=(--self-test-search); [ "$MODE" = product ] && ARGS=(--self-test-product)
 [ -n "${PAGE_BASE:-}" ] && ARGS+=(--page-base "$PAGE_BASE")
 DD="${DD:-/tmp/runachat-dd}"
 OUT="${OUT:-/tmp/runachat-selftest}"
@@ -59,6 +60,10 @@ if [ "$MODE" = search ]; then
   if [ -n "$SALES" ] && awk "BEGIN{exit !($SALES > 0)}"; then echo "SelfTest: PASS the order was reported with Ask Quicklly sales \$$SALES"; else echo "SelfTest: FAIL no Ask Quicklly sales in the order report"; exit 1; fi
   OURL=$(grep -oE "order page [^ ]+" "$OUT/console.log" | head -1 | cut -d' ' -f3)
   if [ -n "$OURL" ] && echo "$OURL" | grep -q "userId=" && ! echo "$OURL" | grep -qE "[?&](zip|address|city|state)="; then echo "SelfTest: PASS no personal data in the order call: ?${OURL#*\?}"; else echo "SelfTest: FAIL the order call carries address details: $OURL"; exit 1; fi
+  grep -qE "\[SelfTest\] DONE pass=[0-9]+ fail=0" "$OUT/console.log"
+  exit $?
+fi
+if [ "$MODE" = product ]; then
   grep -qE "\[SelfTest\] DONE pass=[0-9]+ fail=0" "$OUT/console.log"
   exit $?
 fi

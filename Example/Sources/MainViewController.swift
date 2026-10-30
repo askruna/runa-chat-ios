@@ -25,8 +25,12 @@ final class SampleCart {
 final class MainViewController: UIViewController {
     private let cartLabel = UILabel()
 
+    /// The app's chat delegate, for the screens that open the chat (the product view's Ask Quicklly line).
+    static weak var shared: MainViewController?
+
     override func viewDidLoad() {
         super.viewDidLoad()
+        Self.shared = self
         title = "Quicklly (sample app)"
         view.backgroundColor = .white
         RunaChat.warmUp()
@@ -56,6 +60,10 @@ final class MainViewController: UIViewController {
         search.setTitle("Search", for: .normal)
         search.addTarget(self, action: #selector(searchTapped), for: .touchUpInside)
         stack.addArrangedSubview(search)
+        let product = UIButton(type: .system)
+        product.setTitle("Product: okra", for: .normal)
+        product.addTarget(self, action: #selector(productTapped), for: .touchUpInside)
+        stack.addArrangedSubview(product)
         let order = UIButton(type: .system)
         order.setTitle("Place order", for: .normal)
         order.addTarget(self, action: #selector(orderTapped), for: .touchUpInside)
@@ -75,6 +83,11 @@ final class MainViewController: UIViewController {
     @objc private func deepTapped() { openChat(question: "What can I cook tonight with paneer?") }
     @objc private func searchTapped() { openSearch(query: nil) }
     @objc private func orderTapped() { placeOrder(completion: nil) }
+    @objc private func productTapped() { openProduct(pid: "1013592", sid: "113189", title: "Okra (bhindi) 1 Lbs", price: 3.39) }
+
+    func openProduct(pid: String, sid: String, title: String, price: Double?) {
+        navigationController?.pushViewController(ProductViewController(pid: pid, sid: sid, title: title, price: price), animated: true)
+    }
 
     func openSearch(query: String?) {
         navigationController?.pushViewController(SearchViewController(query: query, chat: self), animated: true)
@@ -93,6 +106,7 @@ final class MainViewController: UIViewController {
         options.city = "Chicago"
         options.state = "IL"
         options.debug = true
+        options.preview = true      // a tester build: show what is still in preview for shoppers (the product view)
         if let base = pageBase { options.pageURLOverride = base.appendingPathComponent("chat-app.html") }   // Runa's tests only
         return options
     }
@@ -151,10 +165,18 @@ extension MainViewController: RunaChatDelegate {
     }
 }
 
-/// Stands in for the app's product screen: what openProduct lands on.
+/// Stands in for the app's product screen (what openProduct lands on): the product's details, then Ask Quicklly's
+/// bundle and line under them. The integration is the RunaProductView lines marked below.
 final class ProductViewController: UIViewController {
-    private let product: RunaChat.Product
-    init(product: RunaChat.Product) { self.product = product; super.init(nibName: nil, bundle: nil) }
+    let pid: String, sid: String, productTitle: String, price: Double?
+    private(set) var bundle: RunaProductView!
+    let scroll = UIScrollView()
+
+    init(pid: String, sid: String, title: String, price: Double?) {
+        self.pid = pid; self.sid = sid; self.productTitle = title; self.price = price
+        super.init(nibName: nil, bundle: nil)
+    }
+    convenience init(product: RunaChat.Product) { self.init(pid: product.pid, sid: product.sid, title: product.title, price: product.price) }
     required init?(coder: NSCoder) { fatalError() }
 
     override func viewDidLoad() {
@@ -163,25 +185,81 @@ final class ProductViewController: UIViewController {
         view.backgroundColor = .white
         let label = UILabel()
         label.numberOfLines = 0
-        label.text = "\(product.title)\npid \(product.pid) · store \(product.sid)"
+        label.text = "\(productTitle)\npid \(pid) · store \(sid)"
+        // your product photo, price and buttons — tall, as in the Quicklly app, so the bundle starts below the fold
+        let photo = UILabel()
+        photo.text = "(product photo)"
+        photo.textAlignment = .center
+        photo.textColor = .gray
+        photo.backgroundColor = UIColor(white: 0.95, alpha: 1)
+        photo.heightAnchor.constraint(equalToConstant: 360).isActive = true
         let plus = UIButton(type: .system)
         plus.setTitle("+1 in cart", for: .normal)
         plus.addTarget(self, action: #selector(plusTapped), for: .touchUpInside)
-        let stack = UIStackView(arrangedSubviews: [label, plus])
-        stack.axis = .vertical
-        stack.spacing = 14
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(stack)
+        let details = UIStackView(arrangedSubviews: [label, photo, plus])
+        details.axis = .vertical
+        details.spacing = 14
+        details.isLayoutMarginsRelativeArrangement = true
+        details.layoutMargins = UIEdgeInsets(top: 20, left: 20, bottom: 10, right: 20)
+
+        // ─── Ask Quicklly on the product screen: under your product details ─────────────────
+        bundle = RunaProductView(options: MainViewController.options(), delegate: self)
+        bundle.chatDelegate = MainViewController.shared                   // the Ask Quicklly line opens the chat with this delegate
+
+        let more = UILabel()
+        more.text = "Product details · Shipping & delivery …"
+        more.textColor = .darkGray
+        let moreWrap = UIStackView(arrangedSubviews: [more])
+        moreWrap.isLayoutMarginsRelativeArrangement = true
+        moreWrap.layoutMargins = UIEdgeInsets(top: 20, left: 20, bottom: 240, right: 20)
+        let page = UIStackView(arrangedSubviews: [details, bundle, moreWrap])   // the bundle: full width, it sizes itself
+        page.axis = .vertical
+        page.translatesAutoresizingMaskIntoConstraints = false
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(scroll)
+        scroll.addSubview(page)
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
-            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            scroll.topAnchor.constraint(equalTo: view.topAnchor),
+            scroll.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            page.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor),
+            page.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor),
+            page.leadingAnchor.constraint(equalTo: scroll.frameLayoutGuide.leadingAnchor),
+            page.trailingAnchor.constraint(equalTo: scroll.frameLayoutGuide.trailingAnchor),
         ])
+        bundle.show(productId: pid, storeId: sid, title: productTitle)    // ← the product on screen
     }
 
     @objc func plusTapped() {
-        SampleCart.set(pid: product.pid, sid: product.sid, title: product.title, price: product.price, qty: SampleCart.qty(product.pid) + 1)
-        NSLog("[Sample] product screen +1 → qty %d", SampleCart.qty(product.pid))
+        SampleCart.set(pid: pid, sid: sid, title: productTitle, price: price, qty: SampleCart.qty(pid) + 1)
+        NSLog("[Sample] product screen +1 → qty %d", SampleCart.qty(pid))
         RunaChat.notifyCartChanged()
+    }
+}
+
+extension ProductViewController: RunaProductViewDelegate {
+    func runaProduct(_ view: RunaProductView, setQuantity quantity: Int, of product: RunaChat.Product) {
+        NSLog("[Sample] product setQuantity pid=%@ sid=%@ qty=%d title=%@", product.pid, product.sid, quantity, product.title)
+        SampleCart.set(pid: product.pid, sid: product.sid, title: product.title, price: product.price, qty: quantity)   // your add-to-cart
+        ProductSelfTest.setQuantityCalls += 1                                                                            // test-only
+    }
+
+    func runaProductCart(_ view: RunaProductView) -> [RunaChat.CartItem] {
+        SampleCart.snapshot                                                                                              // your cart
+    }
+
+    func runaProduct(_ view: RunaProductView, openProduct product: RunaChat.Product) -> Bool {
+        NSLog("[Sample] product openProduct pid=%@ sid=%@", product.pid, product.sid)
+        navigationController?.pushViewController(ProductViewController(product: product), animated: true)
+        return true
+    }
+
+    func runaProduct(_ view: RunaProductView, didChangeHeight height: CGFloat) {
+        NSLog("[Sample] product view height %.0f", height)
+    }
+
+    func runaProduct(_ view: RunaProductView, didReceive type: String, payload: [String: Any]) {
+        ProductSelfTest.handle(type: type, payload: payload, screen: self)   // test-only
     }
 }
