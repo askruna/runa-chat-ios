@@ -134,8 +134,8 @@ final class MainViewController: UIViewController {
 
 extension MainViewController: RunaChatDelegate {
     func runaChat(_ chat: RunaChatViewController, setQuantity quantity: Int, of product: RunaChat.Product) {
-        NSLog("[Sample] setQuantity pid=%@ sid=%@ qty=%d title=%@ minOrder=%@ deliveryFee=%@ range=%@ instant=%d", product.pid, product.sid, quantity, product.title,
-              product.minOrder.map { String($0) } ?? "nil", product.deliveryFee.map { String($0) } ?? "nil", product.deliveryRange, product.instantDelivery ? 1 : 0)
+        NSLog("[Sample] setQuantity pid=%@ sid=%@ qty=%d title=%@ minOrder=%@ deliveryFee=%@ range=%@ instant=%d mrp=%@ tax=%@ banner=%@ addr=%@", product.pid, product.sid, quantity, product.title,
+              product.minOrder.map { String($0) } ?? "nil", product.deliveryFee.map { String($0) } ?? "nil", product.deliveryRange, product.instantDelivery ? 1 : 0, product.mrp.map { String($0) } ?? "nil", product.tax.map { String($0) } ?? "nil", product.storeBanner, product.storeAddress)
         SampleCart.set(pid: product.pid, sid: product.sid, title: product.title, price: product.price, qty: quantity)   // your add-to-cart
     }
 
@@ -240,7 +240,7 @@ final class ProductViewController: UIViewController {
 
 extension ProductViewController: RunaProductViewDelegate {
     func runaProduct(_ view: RunaProductView, setQuantity quantity: Int, of product: RunaChat.Product) {
-        NSLog("[Sample] product setQuantity pid=%@ sid=%@ qty=%d title=%@", product.pid, product.sid, quantity, product.title)
+        NSLog("[Sample] product setQuantity pid=%@ sid=%@ qty=%d title=%@ mrp=%@ tax=%@ banner=%@ addr=%@", product.pid, product.sid, quantity, product.title, product.mrp.map { String($0) } ?? "nil", product.tax.map { String($0) } ?? "nil", product.storeBanner, product.storeAddress)
         SampleCart.set(pid: product.pid, sid: product.sid, title: product.title, price: product.price, qty: quantity)   // your add-to-cart
         ProductSelfTest.setQuantityCalls += 1                                                                            // test-only
     }

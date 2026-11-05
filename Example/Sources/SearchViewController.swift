@@ -103,7 +103,7 @@ final class SearchViewController: UIViewController, UITextFieldDelegate {
 
 extension SearchViewController: RunaSearchViewDelegate {
     func runaSearch(_ view: RunaSearchView, setQuantity quantity: Int, of product: RunaChat.Product) {
-        NSLog("[Sample] search setQuantity pid=%@ sid=%@ qty=%d title=%@", product.pid, product.sid, quantity, product.title)
+        NSLog("[Sample] search setQuantity pid=%@ sid=%@ qty=%d title=%@ mrp=%@ tax=%@ banner=%@ addr=%@", product.pid, product.sid, quantity, product.title, product.mrp.map { String($0) } ?? "nil", product.tax.map { String($0) } ?? "nil", product.storeBanner, product.storeAddress)
         SampleCart.set(pid: product.pid, sid: product.sid, title: product.title, price: product.price, qty: quantity)   // your add-to-cart
     }
 

@@ -118,6 +118,13 @@ public enum RunaChat {
         public let deliveryRange: String
         public let instantDelivery: Bool
         public let storeImage: String
+        /// The store's banner image and street address, from Quicklly's own store list. "" = unknown.
+        public let storeBanner: String
+        public let storeAddress: String
+        /// MRP: the original price while the product is on sale, else the price. nil = unknown.
+        public let mrp: Double?
+        /// Tax per unit in USD, as your product cards print it (data-tax). nil = not known yet.
+        public let tax: Double?
         /// The whole message payload, for anything not listed above.
         public let raw: [String: Any]
 
@@ -137,6 +144,10 @@ public enum RunaChat {
             deliveryRange = p["deliveryRange"] as? String ?? ""
             instantDelivery = p["instantDelivery"] as? Bool ?? false
             storeImage = p["storeImage"] as? String ?? ""
+            storeBanner = p["storeBanner"] as? String ?? ""
+            storeAddress = p["storeAddress"] as? String ?? ""
+            mrp = (p["mrp"] as? NSNumber)?.doubleValue
+            tax = (p["tax"] as? NSNumber)?.doubleValue
         }
     }
 

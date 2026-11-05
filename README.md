@@ -20,13 +20,13 @@ opening your product screen.
 `https://github.com/askruna/runa-chat-ios` (or add it to your `Package.swift`):
 
 ```swift
-.package(url: "https://github.com/askruna/runa-chat-ios", from: "1.2.0")
+.package(url: "https://github.com/askruna/runa-chat-ios", from: "1.2.1")
 ```
 
 **CocoaPods**
 
 ```ruby
-pod 'RunaChat', :git => 'https://github.com/askruna/runa-chat-ios.git', :tag => '1.2.0'
+pod 'RunaChat', :git => 'https://github.com/askruna/runa-chat-ios.git', :tag => '1.2.1'
 ```
 
 ## Use
@@ -54,7 +54,7 @@ extension MyViewController: RunaChatDelegate {
 }
 ```
 
-**Required** — three delegate methods:
+**Required** — three delegate methods, plus `RunaChat.orderPlaced` after checkout (Order tracking, below):
 
 | method | when | what you do |
 | --- | --- | --- |
@@ -82,10 +82,12 @@ chat faster. `options.question` opens the chat with a question already sent (dee
 about this product"); `options.debug = true` prints every message. You can also create
 `RunaChatViewController(options:delegate:)` yourself and push or present it where you like.
 
-`setQuantity` is called with everything the chat knows about the product (`title`, `price`,
-`image`, `storeName`, `storeImage`, `url`, `fastDelivery`, and `raw` with the whole payload) and the
-store's terms for the shopper's ZIP (`minOrder`, `deliveryFee`, `deliveryRange`, `instantDelivery`),
-so a new store row can be drawn without a lookup. Prices, images and terms come from Runa's index
+`setQuantity` is called with everything the chat knows about the product (`title`, `price`, `mrp`,
+`tax`, `image`, `storeName`, `storeImage`, `storeBanner`, `storeAddress`, `url`, `fastDelivery`, and
+`raw` with the whole payload) and the store's terms for the shopper's ZIP (`minOrder`, `deliveryFee`,
+`deliveryRange`, `instantDelivery`), so a new store row can be drawn without a lookup. `mrp` is the
+original price while the product is on sale, else the price; `tax` is the tax per unit in USD as
+your product cards print it (`null` while not known). Prices, images and terms come from Runa's index
 (refreshed nightly) and are for display: add the line through your usual add-to-cart call with
 `pid` and `sid`, so your server prices it as it always does.
 
@@ -154,10 +156,10 @@ extension ProductViewController: RunaProductViewDelegate {
 - `show(…)` again when the screen shows another product (no reload). `notifyCartChanged()` and
   `updateAddress(…)` reach the product view too.
 
-## Order tracking for analytics (optional, 1.1.0)
+## Order tracking for analytics (required, 1.1.0)
 
-Optional, for analytics only: this is how the results board counts the app's orders and the Ask
-Quicklly sales in them. The chat and the search view work without it.
+Required: this is how the results board counts the app's orders and the Ask Quicklly sales in
+them. Without it the board shows the app's conversations but no orders and no sales.
 
 **No personal data:** the order number, the total and the products (pid, sid, unit price paid,
 quantity), with the user id the chat already uses. No names, emails,
@@ -206,6 +208,7 @@ without an app release; the library only needs the three delegate methods above.
 
 ## Versions
 
+- **1.2.1** — every product also carries `storeBanner`, `storeAddress`, `mrp` and `tax` (Quicklly mobile team's cart line).
 - **1.2.0** — `RunaProductView` (Ask Quicklly on the product screen), `Options.preview` for testers.
 - **1.1.2** — the order call (analytics) sends no ZIP, address, city or state: only the order, its products and the customer id.
 - **1.1.1** — the chat's loading screen: the Ask Quicklly mark (the search answer's sparkle in a spinning ring) instead of a plain spinner, until the chat has drawn.

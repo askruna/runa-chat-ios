@@ -54,6 +54,10 @@ xcrun simctl io "$UDID" screenshot "$OUT/final.png" >/dev/null 2>&1 || true
 kill $LAUNCH 2>/dev/null || true
 
 grep -E "\[SelfTest\]|\[Sample\]" "$OUT/console.log" | sed -E 's/^.*\[(SelfTest|Sample)\] /\1: /'
+# 1.2.1: every product handed to the app carries mrp, tax, the store's banner + address (STRICT_TAX=1: a tax figure, not nil)
+TAXRE='([0-9.]+|nil)'; [ "${STRICT_TAX:-}" = 1 ] && TAXRE='[0-9.]+'
+SQ=$(grep -E "setQuantity pid=" "$OUT/console.log" || true)
+if [ -n "$SQ" ] && ! echo "$SQ" | grep -qvE " mrp=[0-9.]+ tax=${TAXRE} banner=https?://[^ ]+ addr=."; then echo "SelfTest: PASS every setQuantity product carries mrp, tax, store banner + address: $(echo "$SQ" | head -1 | grep -oE ' mrp=.*' | cut -c1-160)"; else echo "SelfTest: FAIL setQuantity product lacks mrp / tax / store banner / address: $(echo "$SQ" | head -1 | grep -oE ' mrp=.*' | cut -c1-160)"; exit 1; fi
 if [ "$MODE" = search ]; then
   # the order page's answer carries Ask Quicklly's sales in the order (what was added from the search view)
   SALES=$(grep -E "order page→app done" "$OUT/console.log" | grep -oE '"sales": [0-9.]+' | head -1 | grep -oE '[0-9.]+$' || true)
